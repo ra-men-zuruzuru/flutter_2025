@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'HomePage.dart';
-import 'GamePage.dart';
+
+import 'HighLowGamePage.dart';
+import 'GameSelectionPage.dart';
+import 'HitAndBlowGamePage.dart';
 
 void main() {
   runApp(const MyApp());
@@ -35,16 +37,15 @@ class MyApp extends StatelessWidget {
       // home: const MyHomePage(title: 'Flutter Demo Home Page'),
 
       //最初のページを指定
-      initialRoute: "/home",
+      initialRoute: "/",
 
       //ルーター指定
       routes: {
-        "/home": (context) => HomePage(),
-        "/game": (context) => GamePage(),
+        "/": (context) => GameSelectionPage(),
+        "/game": (context) => HighLowGamePage(),
+        "/hit_blow_game": (context) => HitAndBlowGamePage(),
       },
     );
-
-    
   }
 }
 
