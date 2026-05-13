@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'HighLowGamePage.dart';
+import 'HighLowRankingPage.dart';
 import 'GameSelectionPage.dart';
 import 'HitAndBlowGamePage.dart';
 
@@ -51,6 +52,7 @@ class MyApp extends StatelessWidget {
       routes: {
         "/": (context) => GameSelectionPage(),
         "/game": (context) => HighLowGamePage(),
+        "/high_low_ranking": (context) => const HighLowRankingPage(),
         "/hit_blow_game": (context) => HitAndBlowGamePage(),
       },
     );
