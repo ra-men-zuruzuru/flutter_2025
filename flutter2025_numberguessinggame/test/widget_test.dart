@@ -23,7 +23,11 @@ void main() {
     await tester.tap(find.text('ゲーム開始'));
     await tester.pumpAndSettle();
 
-    expect(find.text('持ち金: 100'), findsOneWidget);
+    expect(find.text('ROUND：1'), findsOneWidget);
+    expect(find.text('フェーズ：かんたん'), findsOneWidget);
+    expect(find.text('範囲：1〜10'), findsOneWidget);
+    expect(find.text('持ち金'), findsOneWidget);
+    expect(find.text('100'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
@@ -33,7 +37,7 @@ void main() {
     await tester.tap(find.text('キャンセル'));
     await tester.pumpAndSettle();
 
-    expect(find.text('持ち金: 100'), findsOneWidget);
+    expect(find.text('ROUND：1'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();

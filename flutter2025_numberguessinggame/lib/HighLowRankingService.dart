@@ -63,7 +63,7 @@ class HighLowRankingService {
     final bytes = await avatar.readAsBytes();
     final extension = _extensionForFileName(avatar.name);
     final now = DateTime.now().microsecondsSinceEpoch;
-    final suffix = Random().nextInt(1 << 32);
+    final suffix = Random().nextInt(0x7fffffff);
     final path = 'high_low/${now}_$suffix.$extension';
 
     await _client.storage
@@ -80,7 +80,7 @@ class HighLowRankingService {
     return path;
   }
 
-//supabaseのscoreテーブルにデータを送る
+  //supabaseのscoreテーブルにデータを送る
   Future<void> submitScore({
     required String handleName,
     required double score,
