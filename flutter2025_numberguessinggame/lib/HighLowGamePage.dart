@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'HighLowRankingService.dart';
+import 'HitAndBlowGamePage.dart';
 
 enum HighLowPhase { betting, guessing, roundResult, gameOver }
 
@@ -52,12 +53,15 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
   int _bet = 0;
   int _misses = 0;
   int _targetNumber = 0;
+  int _winStreak = 0;
   int? _lastGuess;
   XFile? _avatar;
   HighLowPhase _phase = HighLowPhase.betting;
   GuessHintType _hintType = GuessHintType.none;
   RoundFeedbackType _feedbackType = RoundFeedbackType.none;
   bool _allowMenuReturn = false;
+  bool _bonusUnlocked = false;
+  bool _isOpeningBonus = false;
   bool _isSubmittingScore = false;
   bool _scoreSubmitted = false;
   String _message = '掛け金を決めてください。';
@@ -67,6 +71,9 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
   HighLowRankingService get _service {
     return _rankingService ??= HighLowRankingService();
   }
+
+  bool get _canChallengeBonus =>
+      _bonusUnlocked && _money >= HitAndBlowBonusRules.entryFee;
 
   HighLowRoundRule get _currentRule {
     if (_roundNumber <= 3) {
@@ -161,6 +168,10 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
 
       setState(() {
         _money += reward;
+        _winStreak++;
+        if (_winStreak >= 3) {
+          _bonusUnlocked = true;
+        }
         _phase = HighLowPhase.roundResult;
         _lastGuess = guess;
         _hintType = GuessHintType.none;
@@ -180,6 +191,7 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
 
       if (_misses >= rule.maxMisses) {
         _money -= _bet;
+        _winStreak = 0;
         _phase = _money <= 0 ? HighLowPhase.gameOver : HighLowPhase.roundResult;
         _hintType = GuessHintType.none;
         _feedbackType = RoundFeedbackType.lose;
@@ -232,9 +244,12 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
       _bet = 0;
       _misses = 0;
       _targetNumber = 0;
+      _winStreak = 0;
       _lastGuess = null;
       _hintType = GuessHintType.none;
       _feedbackType = RoundFeedbackType.none;
+      _bonusUnlocked = false;
+      _isOpeningBonus = false;
       _phase = HighLowPhase.betting;
       _scoreSubmitted = false;
       _isSubmittingScore = false;
@@ -243,6 +258,43 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
       _lastResult = '';
       _betController.clear();
       _guessController.clear();
+    });
+  }
+
+  Future<void> _openBonusChallenge() async {
+    if (!_canChallengeBonus || _isOpeningBonus) {
+      return;
+    }
+
+    setState(() {
+      _money -= HitAndBlowBonusRules.entryFee;
+      _winStreak = 0;
+      _bonusUnlocked = false;
+      _isOpeningBonus = true;
+      _lastResult =
+          'ボーナスチャレンジに参加しました。参加費${HitAndBlowBonusRules.entryFee}コインを支払いました。';
+    });
+
+    final result = await Navigator.pushNamed(
+      context,
+      '/hit_blow_game',
+      arguments: HitAndBlowBonusArgs(currentMoney: _money),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isOpeningBonus = false;
+      if (result is HitAndBlowBonusResult) {
+        _money = result.updatedMoney;
+        if (result.isCleared) {
+          _lastResult = 'ボーナス${result.rank}ランク！報酬${result.reward}コインを獲得しました。';
+        } else {
+          _lastResult = 'ボーナスチャレンジ失敗。報酬はありません。';
+        }
+      }
     });
   }
 
@@ -468,17 +520,33 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
   }
 
   Widget _buildResultActions() {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: OutlinedButton(onPressed: _retire, child: const Text('降りる')),
+        _BonusUnlockPanel(
+          winStreak: _winStreak,
+          bonusUnlocked: _bonusUnlocked,
+          canChallenge: _canChallengeBonus,
+          isOpening: _isOpeningBonus,
+          onChallenge: _openBonusChallenge,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ElevatedButton(
-            onPressed: _continueGame,
-            child: const Text('続ける'),
-          ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _retire,
+                child: const Text('降りる'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _continueGame,
+                child: const Text('続ける'),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -605,6 +673,73 @@ class _ScoreSubmitPanel extends StatelessWidget {
               onPressed: onShowRanking,
               icon: const Icon(Icons.emoji_events),
               label: const Text('ランキングを見る'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BonusUnlockPanel extends StatelessWidget {
+  final int winStreak;
+  final bool bonusUnlocked;
+  final bool canChallenge;
+  final bool isOpening;
+  final VoidCallback onChallenge;
+
+  const _BonusUnlockPanel({
+    required this.winStreak,
+    required this.bonusUnlocked,
+    required this.canChallenge,
+    required this.isOpening,
+    required this.onChallenge,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final message = bonusUnlocked
+        ? canChallenge
+              ? '3連勝達成！ボーナスチャレンジに挑戦できます。'
+              : '3連勝達成！参加には50コイン必要です。'
+        : 'ボーナス解放まであと${(3 - winStreak).clamp(0, 3)}勝';
+
+    return Card(
+      color: bonusUnlocked ? const Color(0xFFFFF8E1) : Colors.grey.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  bonusUnlocked ? Icons.local_fire_department : Icons.lock,
+                  color: bonusUnlocked ? Colors.orange : Colors.grey,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              onPressed: canChallenge && !isOpening ? onChallenge : null,
+              icon: isOpening
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.grid_3x3),
+              label: const Text('ボーナスチャレンジへ'),
             ),
           ],
         ),

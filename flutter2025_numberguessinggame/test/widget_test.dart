@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:flutter2025_numberguessinggame/HitAndBlowGamePage.dart';
 import 'package:flutter2025_numberguessinggame/main.dart';
 
 void main() {
@@ -10,7 +11,7 @@ void main() {
     await tester.pumpWidget(const MyApp());
 
     expect(find.text('High & Low'), findsWidgets);
-    expect(find.text('Hit & Blow'), findsOneWidget);
+    expect(find.textContaining('Hit & BlowはHigh&Lowで3連勝'), findsOneWidget);
     expect(find.text('ゲーム開始'), findsOneWidget);
     expect(find.byIcon(Icons.show_chart), findsWidgets);
   });
@@ -45,5 +46,27 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('ゲーム開始'), findsOneWidget);
+  });
+
+  test('Hit & Blow bonus rank rewards are calculated from attempts', () {
+    expect(HitAndBlowBonusRules.rankForAttempts(3).label, 'S');
+    expect(HitAndBlowBonusRules.rankForAttempts(3).reward, 100);
+    expect(HitAndBlowBonusRules.rankForAttempts(4).label, 'A');
+    expect(HitAndBlowBonusRules.rankForAttempts(4).reward, 60);
+    expect(HitAndBlowBonusRules.rankForAttempts(5).label, 'B');
+    expect(HitAndBlowBonusRules.rankForAttempts(5).reward, 30);
+    expect(HitAndBlowBonusRules.rankForAttempts(8).label, 'C');
+    expect(HitAndBlowBonusRules.rankForAttempts(8).reward, 10);
+  });
+
+  testWidgets('Hit & Blow bonus screen shows history hints and missions', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: HitAndBlowGamePage()));
+
+    expect(find.text('入力履歴'), findsOneWidget);
+    expect(find.text('まだ回答はありません'), findsOneWidget);
+    expect(find.text('ヒントショップ'), findsOneWidget);
+    expect(find.text('ミッション'), findsOneWidget);
   });
 }
