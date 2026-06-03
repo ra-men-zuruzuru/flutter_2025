@@ -439,27 +439,51 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _StatusPanel(roundNumber: _roundNumber, rule: rule),
-                const SizedBox(height: 8),
-                _MultiplierStrip(rule: rule),
                 const SizedBox(height: 18),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    _MoneyPiggyBank(
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final piggyBank = _MoneyPiggyBank(
                       money: _money,
                       formattedMoney: _formatMoney(_money),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: _MiddleFeedbackArea(
-                        message: _message,
-                        lastResult: _lastResult,
-                        lastGuess: _lastGuess,
-                        hintType: _hintType,
-                        feedbackType: _feedbackType,
-                      ),
-                    ),
-                  ],
+                    );
+                    final feedback = _MiddleFeedbackArea(
+                      message: _message,
+                      lastResult: _lastResult,
+                      lastGuess: _lastGuess,
+                      hintType: _hintType,
+                      feedbackType: _feedbackType,
+                    );
+                    final chart = _MultiplierGauge(rule: rule, misses: _misses);
+
+                    if (constraints.maxWidth < 560) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              piggyBank,
+                              const SizedBox(width: 14),
+                              Expanded(child: feedback),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          chart,
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        piggyBank,
+                        const SizedBox(width: 14),
+                        Expanded(child: feedback),
+                        const SizedBox(width: 14),
+                        SizedBox(width: 180, child: chart),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 18),
                 if (_phase != HighLowPhase.gameOver)
@@ -868,22 +892,219 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
-class _MultiplierStrip extends StatelessWidget {
+class _MultiplierGauge extends StatelessWidget {
   final HighLowRoundRule rule;
+  final int misses;
 
-  const _MultiplierStrip({required this.rule});
+  const _MultiplierGauge({required this.rule, required this.misses});
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      '倍率　${rule.multipliers.asMap().entries.map((entry) => '${entry.key}ミス=${entry.value}倍').join(' / ')}',
-      style: TextStyle(
-        color: Colors.grey.shade700,
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
+    final maxMultiplier = rule.multipliers
+        .where((multiplier) => multiplier > 0)
+        .fold<double>(0, max);
+    final safeMisses = misses.clamp(0, rule.multipliers.length - 1).toInt();
+    final currentMultiplier = rule.multipliers[safeMisses];
+    final currentRatio = _ratioFor(currentMultiplier, maxMultiplier);
+    final lastMissIndex = rule.multipliers.length - 1;
+    final middleMissIndex = lastMissIndex ~/ 2;
+    final tickIndexes = <int>{
+      0,
+      middleMissIndex,
+      max(0, lastMissIndex - 1),
+      lastMissIndex,
+    }.toList()..sort();
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              '倍率ゲージ',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 200,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final gaugeTop = 12.0;
+                  final gaugeBottom = constraints.maxHeight - 12;
+                  final gaugeHeight = gaugeBottom - gaugeTop;
+                  final markerTop = gaugeTop + (1 - currentRatio) * gaugeHeight;
+
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned(
+                        left: 70,
+                        top: gaugeTop,
+                        bottom: 12,
+                        child: Container(
+                          width: 30,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: Colors.black26),
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.deepPurple.shade400,
+                                Colors.lightBlue.shade200,
+                                Colors.red.shade100,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      ...tickIndexes.map((index) {
+                        final multiplier = rule.multipliers[index];
+                        final ratio = _ratioFor(multiplier, maxMultiplier);
+                        final top = gaugeTop + (1 - ratio) * gaugeHeight;
+                        final isFailureLine = index == lastMissIndex;
+                        final isCurrent = index == safeMisses;
+                        final label = isFailureLine ? '全ミス' : '$indexミス';
+                        final lineColor = isFailureLine
+                            ? Colors.red.shade400
+                            : isCurrent
+                            ? Colors.deepPurple
+                            : Colors.black38;
+
+                        return Positioned(
+                          left: 0,
+                          right: 0,
+                          top: top - 9,
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 58,
+                                child: Text(
+                                  label,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: isCurrent
+                                        ? FontWeight.bold
+                                        : FontWeight.w600,
+                                    color: isFailureLine
+                                        ? Colors.red.shade700
+                                        : Colors.black87,
+                                  ),
+                                  textAlign: TextAlign.right,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Container(
+                                  height: isCurrent ? 3 : 1.5,
+                                  color: lineColor,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                width: 38,
+                                child: Text(
+                                  '${_formatMultiplier(multiplier)}倍',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: isFailureLine || isCurrent
+                                        ? FontWeight.bold
+                                        : FontWeight.w600,
+                                    color: isFailureLine
+                                        ? Colors.red.shade700
+                                        : Colors.black87,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      TweenAnimationBuilder<double>(
+                        tween: Tween<double>(begin: markerTop, end: markerTop),
+                        duration: const Duration(milliseconds: 420),
+                        curve: Curves.easeOutBack,
+                        builder: (context, animatedTop, child) {
+                          return Positioned(
+                            left: 46,
+                            top: animatedTop - 16,
+                            child: child!,
+                          );
+                        },
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.play_arrow,
+                              color: currentMultiplier == 0
+                                  ? Colors.red.shade700
+                                  : Colors.deepPurple,
+                              size: 28,
+                            ),
+                            Container(
+                              width: 70,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: currentMultiplier == 0
+                                    ? Colors.red.shade50
+                                    : Colors.deepPurple.shade50,
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: currentMultiplier == 0
+                                      ? Colors.red.shade300
+                                      : Colors.deepPurple.shade300,
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x22000000),
+                                    blurRadius: 8,
+                                    offset: Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                '${_formatMultiplier(currentMultiplier)}倍',
+                                style: TextStyle(
+                                  color: currentMultiplier == 0
+                                      ? Colors.red.shade700
+                                      : Colors.deepPurple.shade700,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
-      textAlign: TextAlign.center,
     );
+  }
+
+  double _ratioFor(double multiplier, double maxMultiplier) {
+    if (multiplier <= 0 || maxMultiplier <= 0) {
+      return 0;
+    }
+    return (multiplier / maxMultiplier).clamp(0.0, 1.0).toDouble();
+  }
+
+  String _formatMultiplier(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toStringAsFixed(0);
+    }
+    return value.toStringAsFixed(1);
   }
 }
 

@@ -13,7 +13,19 @@ void main() {
     expect(find.text('High & Low'), findsWidgets);
     expect(find.textContaining('Hit & BlowはHigh&Lowで3連勝'), findsOneWidget);
     expect(find.text('ゲーム開始'), findsOneWidget);
+    expect(find.text('遊び方'), findsOneWidget);
     expect(find.byIcon(Icons.show_chart), findsWidgets);
+
+    await tester.tap(find.text('遊び方'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ゲーム説明'), findsOneWidget);
+    expect(find.text('ボーナスチャレンジ'), findsOneWidget);
+
+    await tester.tap(find.text('閉じる'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ゲーム説明'), findsNothing);
   });
 
   testWidgets('asks for confirmation before leaving High & Low', (
@@ -27,6 +39,9 @@ void main() {
     expect(find.text('ROUND：1'), findsOneWidget);
     expect(find.text('フェーズ：かんたん'), findsOneWidget);
     expect(find.text('範囲：1〜10'), findsOneWidget);
+    expect(find.text('0ミス'), findsOneWidget);
+    expect(find.text('0倍'), findsOneWidget);
+    expect(find.text('全ミス'), findsOneWidget);
     expect(find.text('持ち金'), findsOneWidget);
     expect(find.text('100'), findsOneWidget);
 
