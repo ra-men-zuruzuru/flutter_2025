@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'HighLowRankingService.dart';
 import 'HitAndBlowGamePage.dart';
+import 'high_low_result_title.dart';
 
 enum HighLowPhase { betting, guessing, roundResult, gameOver }
 
@@ -49,13 +50,20 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
   HighLowRankingService? _rankingService;
 
   double _money = _initialMoney;
+  double _maxMoney = _initialMoney;
   int _roundNumber = 1;
   int _bet = 0;
   int _misses = 0;
   int _targetNumber = 0;
   int _winStreak = 0;
+  int _winRounds = 0;
+  int _loseRounds = 0;
+  int _maxWinStreak = 0;
+  int _bonusChallengeCount = 0;
+  int _bonusClearCount = 0;
   int? _lastGuess;
   XFile? _avatar;
+  String? _bestBonusRank;
   HighLowPhase _phase = HighLowPhase.betting;
   GuessHintType _hintType = GuessHintType.none;
   RoundFeedbackType _feedbackType = RoundFeedbackType.none;
@@ -74,6 +82,21 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
 
   bool get _canChallengeBonus =>
       _bonusUnlocked && _money >= HitAndBlowBonusRules.entryFee;
+
+  HighLowResultStats get _resultStats => HighLowResultStats(
+    score: _money,
+    reachedRound: _roundNumber,
+    maxMoney: _maxMoney,
+    winRounds: _winRounds,
+    loseRounds: _loseRounds,
+    maxWinStreak: _maxWinStreak,
+    bonusChallengeCount: _bonusChallengeCount,
+    bonusClearCount: _bonusClearCount,
+    bestBonusRank: _bestBonusRank,
+  );
+
+  HighLowResultTitle get _resultTitle =>
+      HighLowResultTitle.evaluate(_resultStats);
 
   HighLowRoundRule get _currentRule {
     if (_roundNumber <= 3) {
@@ -107,6 +130,21 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
       return value.toStringAsFixed(0);
     }
     return value.toStringAsFixed(1);
+  }
+
+  void _updateMaxMoney() {
+    _maxMoney = max(_maxMoney, _money);
+  }
+
+  String? _betterBonusRank(String? current, String? next) {
+    if (next == null) {
+      return current;
+    }
+
+    const rankOrder = {'S': 4, 'A': 3, 'B': 2, 'C': 1};
+    final currentValue = rankOrder[current] ?? 0;
+    final nextValue = rankOrder[next] ?? 0;
+    return nextValue > currentValue ? next : current;
   }
 
   void _startRound() {
@@ -169,6 +207,9 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
       setState(() {
         _money += reward;
         _winStreak++;
+        _winRounds++;
+        _maxWinStreak = max(_maxWinStreak, _winStreak);
+        _updateMaxMoney();
         if (_winStreak >= 3) {
           _bonusUnlocked = true;
         }
@@ -191,6 +232,7 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
 
       if (_misses >= rule.maxMisses) {
         _money -= _bet;
+        _loseRounds++;
         _winStreak = 0;
         _phase = _money <= 0 ? HighLowPhase.gameOver : HighLowPhase.roundResult;
         _hintType = GuessHintType.none;
@@ -240,12 +282,19 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
   void _restart() {
     setState(() {
       _money = _initialMoney;
+      _maxMoney = _initialMoney;
       _roundNumber = 1;
       _bet = 0;
       _misses = 0;
       _targetNumber = 0;
       _winStreak = 0;
+      _winRounds = 0;
+      _loseRounds = 0;
+      _maxWinStreak = 0;
+      _bonusChallengeCount = 0;
+      _bonusClearCount = 0;
       _lastGuess = null;
+      _bestBonusRank = null;
       _hintType = GuessHintType.none;
       _feedbackType = RoundFeedbackType.none;
       _bonusUnlocked = false;
@@ -271,6 +320,7 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
       _winStreak = 0;
       _bonusUnlocked = false;
       _isOpeningBonus = true;
+      _bonusChallengeCount++;
       _lastResult =
           'ボーナスチャレンジに参加しました。参加費${HitAndBlowBonusRules.entryFee}コインを支払いました。';
     });
@@ -289,7 +339,10 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
       _isOpeningBonus = false;
       if (result is HitAndBlowBonusResult) {
         _money = result.updatedMoney;
+        _updateMaxMoney();
         if (result.isCleared) {
+          _bonusClearCount++;
+          _bestBonusRank = _betterBonusRank(_bestBonusRank, result.rank);
           _lastResult = 'ボーナス${result.rank}ランク！報酬${result.reward}コインを獲得しました。';
         } else {
           _lastResult = 'ボーナスチャレンジ失敗。報酬はありません。';
@@ -346,6 +399,7 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
       await _service.submitScore(
         handleName: handleName,
         score: _money,
+        resultTitle: _resultTitle.label,
         avatarPath: avatarPath,
       );
 
@@ -577,13 +631,17 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
   }
 
   Widget _buildGameOverActions() {
+    final resultStats = _resultStats;
+    final resultTitle = _resultTitle;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'スコア: ${_formatMoney(_money)}',
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center,
+        _ResultSummaryCard(title: resultTitle, score: _formatMoney(_money)),
+        const SizedBox(height: 12),
+        _ResultStatsCard(
+          stats: resultStats,
+          formattedMaxMoney: _formatMoney(_maxMoney),
         ),
         const SizedBox(height: 16),
         _ScoreSubmitPanel(
@@ -605,6 +663,157 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
           child: const Text('戻る'),
         ),
       ],
+    );
+  }
+}
+
+class _ResultSummaryCard extends StatelessWidget {
+  final HighLowResultTitle title;
+  final String score;
+
+  const _ResultSummaryCard({required this.title, required this.score});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: title.color.withValues(alpha: 0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: title.color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: title.color.withValues(alpha: 0.5)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(title.icon, color: title.color),
+                  const SizedBox(width: 8),
+                  Text(
+                    title.label,
+                    style: TextStyle(
+                      color: title.color,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              '最終スコア',
+              style: TextStyle(fontSize: 13, color: Colors.black54),
+            ),
+            Text(
+              score,
+              style: const TextStyle(fontSize: 34, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title.description,
+              style: const TextStyle(fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultStatsCard extends StatelessWidget {
+  final HighLowResultStats stats;
+  final String formattedMaxMoney;
+
+  const _ResultStatsCard({
+    required this.stats,
+    required this.formattedMaxMoney,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bestBonusRank = stats.bestBonusRank ?? '-';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'プレイ統計',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _ResultStatTile(
+                  label: '到達ラウンド',
+                  value: '${stats.reachedRound}',
+                ),
+                _ResultStatTile(label: '最高持ち金', value: formattedMaxMoney),
+                _ResultStatTile(label: '勝利ラウンド', value: '${stats.winRounds}'),
+                _ResultStatTile(label: '失敗ラウンド', value: '${stats.loseRounds}'),
+                _ResultStatTile(label: '最大連勝', value: '${stats.maxWinStreak}'),
+                _ResultStatTile(
+                  label: 'ボーナス挑戦',
+                  value: '${stats.bonusChallengeCount}',
+                ),
+                _ResultStatTile(
+                  label: 'ボーナスクリア',
+                  value: '${stats.bonusClearCount}',
+                ),
+                _ResultStatTile(label: '最高ボーナス', value: bestBonusRank),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultStatTile extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ResultStatTile({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 150,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.black12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

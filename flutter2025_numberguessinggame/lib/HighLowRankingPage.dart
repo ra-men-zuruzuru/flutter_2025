@@ -110,7 +110,15 @@ class _HighLowRankingPageState extends State<HighLowRankingPage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    subtitle: Text(_formatDate(entry.createdAt)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        _RankingTitleChip(title: entry.resultTitle),
+                        const SizedBox(height: 4),
+                        Text(_formatDate(entry.createdAt)),
+                      ],
+                    ),
                     trailing: Text(
                       _formatScore(entry.score),
                       style: const TextStyle(
@@ -123,6 +131,34 @@ class _HighLowRankingPageState extends State<HighLowRankingPage> {
               },
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _RankingTitleChip extends StatelessWidget {
+  final String title;
+
+  const _RankingTitleChip({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.deepPurple.shade50,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.deepPurple.shade100),
+      ),
+      child: Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: Colors.deepPurple.shade700,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );

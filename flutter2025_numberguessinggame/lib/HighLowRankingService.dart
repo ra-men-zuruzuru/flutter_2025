@@ -8,6 +8,7 @@ class HighLowScoreEntry {
   final String handleName;
   final String? avatarPath;
   final double score;
+  final String resultTitle;
   final DateTime createdAt;
 
   const HighLowScoreEntry({
@@ -15,6 +16,7 @@ class HighLowScoreEntry {
     required this.handleName,
     required this.avatarPath,
     required this.score,
+    required this.resultTitle,
     required this.createdAt,
   });
 
@@ -28,6 +30,7 @@ class HighLowScoreEntry {
       score: rawScore is num
           ? rawScore.toDouble()
           : double.tryParse(rawScore.toString()) ?? 0,
+      resultTitle: (json['result_title'] ?? '挑戦者').toString(),
       createdAt: DateTime.parse(json['created_at'].toString()),
     );
   }
@@ -46,7 +49,9 @@ class HighLowRankingService {
   Future<List<HighLowScoreEntry>> fetchRanking({int limit = 10}) async {
     final response = await _client
         .from(scoresTable)
-        .select('id, handle_name, avatar_path, score, game_type, created_at')
+        .select(
+          'id, handle_name, avatar_path, score, result_title, game_type, created_at',
+        )
         .eq('game_type', gameType)
         .order('score', ascending: false)
         .order('created_at', ascending: true)
@@ -84,12 +89,14 @@ class HighLowRankingService {
   Future<void> submitScore({
     required String handleName,
     required double score,
+    required String resultTitle,
     String? avatarPath,
   }) async {
     await _client.from(scoresTable).insert({
       'handle_name': handleName,
       'avatar_path': avatarPath,
       'score': score,
+      'result_title': resultTitle,
       'game_type': gameType,
     });
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:flutter2025_numberguessinggame/HitAndBlowGamePage.dart';
+import 'package:flutter2025_numberguessinggame/high_low_result_title.dart';
 import 'package:flutter2025_numberguessinggame/main.dart';
 
 void main() {
@@ -72,6 +73,37 @@ void main() {
     expect(HitAndBlowBonusRules.rankForAttempts(5).reward, 30);
     expect(HitAndBlowBonusRules.rankForAttempts(8).label, 'C');
     expect(HitAndBlowBonusRules.rankForAttempts(8).reward, 10);
+  });
+
+  test('High & Low result titles are evaluated by priority', () {
+    HighLowResultTitle titleFor({
+      double score = 120,
+      int winRounds = 0,
+      int loseRounds = 1,
+      int maxWinStreak = 0,
+      int bonusChallengeCount = 0,
+      String? bestBonusRank,
+    }) {
+      return HighLowResultTitle.evaluate(
+        HighLowResultStats(
+          score: score,
+          reachedRound: 1,
+          maxMoney: score,
+          winRounds: winRounds,
+          loseRounds: loseRounds,
+          maxWinStreak: maxWinStreak,
+          bonusChallengeCount: bonusChallengeCount,
+          bonusClearCount: bestBonusRank == null ? 0 : 1,
+          bestBonusRank: bestBonusRank,
+        ),
+      );
+    }
+
+    expect(titleFor(score: 0).label, 'すっからかんチャレンジャー');
+    expect(titleFor(score: 120, bestBonusRank: 'S').label, 'ボーナス職人');
+    expect(titleFor(score: 120, maxWinStreak: 5).label, '連勝の読み師');
+    expect(titleFor(score: 500).label, '金色の勝負師');
+    expect(titleFor(score: 80).label, '再挑戦の芽');
   });
 
   testWidgets('Hit & Blow bonus screen shows history hints and missions', (
