@@ -118,3 +118,26 @@ class HighLowResultTitle {
     );
   }
 }
+
+class HighLowResultShareText {
+  const HighLowResultShareText._();
+
+  static String build({
+    required HighLowResultTitle title,
+    required HighLowResultStats stats,
+  }) {
+    return [
+      'High & Lowで「${title.label}」を獲得！',
+      '最終スコアは${_formatMoney(stats.score)}、到達ラウンドは${stats.reachedRound}。',
+      '最高持ち金${_formatMoney(stats.maxMoney)}まで伸ばしました。',
+      '#HighAndLow #数あてゲーム',
+    ].join('\n');
+  }
+
+  static String _formatMoney(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toStringAsFixed(0);
+    }
+    return value.toStringAsFixed(1);
+  }
+}

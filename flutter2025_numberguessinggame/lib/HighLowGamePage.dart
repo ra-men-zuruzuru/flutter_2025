@@ -1,7 +1,7 @@
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'HighLowRankingService.dart';
@@ -633,6 +633,10 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
   Widget _buildGameOverActions() {
     final resultStats = _resultStats;
     final resultTitle = _resultTitle;
+    final shareText = HighLowResultShareText.build(
+      title: resultTitle,
+      stats: resultStats,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -643,6 +647,8 @@ class _HighLowGamePageState extends State<HighLowGamePage> {
           stats: resultStats,
           formattedMaxMoney: _formatMoney(_maxMoney),
         ),
+        const SizedBox(height: 12),
+        _ResultShareCard(shareText: shareText),
         const SizedBox(height: 16),
         _ScoreSubmitPanel(
           avatar: _avatar,
@@ -810,6 +816,73 @@ class _ResultStatTile extends StatelessWidget {
             Text(
               value,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultShareCard extends StatelessWidget {
+  final String shareText;
+
+  const _ResultShareCard({required this.shareText});
+
+  Future<void> _copyShareText(BuildContext context) async {
+    await Clipboard.setData(ClipboardData(text: shareText));
+
+    if (!context.mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('シェア文をコピーしました。')));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: const Color(0xFFF7F4FF),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.campaign, color: Colors.deepPurple.shade600),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    '投稿前シェア文',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.deepPurple.shade100),
+              ),
+              child: SelectableText(
+                shareText,
+                style: const TextStyle(fontSize: 14, height: 1.45),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: () => _copyShareText(context),
+                icon: const Icon(Icons.copy),
+                label: const Text('コピー'),
+              ),
             ),
           ],
         ),

@@ -106,6 +106,34 @@ void main() {
     expect(titleFor(score: 80).label, '再挑戦の芽');
   });
 
+  test('High & Low share text includes result details', () {
+    const title = HighLowResultTitle(
+      label: '金色の勝負師',
+      description: '大きく増やして帰ってきた、まぶしい勝負勘です。',
+      color: Colors.amber,
+      icon: Icons.savings,
+    );
+    const stats = HighLowResultStats(
+      score: 100.5,
+      reachedRound: 7,
+      maxMoney: 250,
+      winRounds: 4,
+      loseRounds: 1,
+      maxWinStreak: 3,
+      bonusChallengeCount: 1,
+      bonusClearCount: 0,
+      bestBonusRank: null,
+    );
+
+    final shareText = HighLowResultShareText.build(title: title, stats: stats);
+
+    expect(shareText, contains('High & Lowで「金色の勝負師」を獲得！'));
+    expect(shareText, contains('最終スコアは100.5'));
+    expect(shareText, contains('到達ラウンドは7'));
+    expect(shareText, contains('最高持ち金250'));
+    expect(shareText, contains('#HighAndLow #数あてゲーム'));
+  });
+
   testWidgets('Hit & Blow bonus screen shows history hints and missions', (
     WidgetTester tester,
   ) async {
