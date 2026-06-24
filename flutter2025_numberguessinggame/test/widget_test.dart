@@ -131,7 +131,7 @@ void main() {
     expect(shareText, contains('最終スコアは100.5'));
     expect(shareText, contains('到達ラウンドは7'));
     expect(shareText, contains('最高持ち金250'));
-    expect(shareText, contains('#HighAndLow #数あてゲーム'));
+    expect(shareText, contains('#HighAndLow #数当てカジノ'));
   });
 
   testWidgets('Hit & Blow bonus screen shows history hints and missions', (

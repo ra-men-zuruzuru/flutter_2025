@@ -130,7 +130,7 @@ class HighLowResultShareText {
       'High & Lowで「${title.label}」を獲得！',
       '最終スコアは${_formatMoney(stats.score)}、到達ラウンドは${stats.reachedRound}。',
       '最高持ち金${_formatMoney(stats.maxMoney)}まで伸ばしました。',
-      '#HighAndLow #数あてゲーム',
+      '#HighAndLow #数当てカジノ',
     ].join('\n');
   }
 
